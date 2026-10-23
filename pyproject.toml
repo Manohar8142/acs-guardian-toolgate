@@ -1,0 +1,47 @@
+[project]
+name = "acs-guardian-toolgate"
+version = "0.1.0"
+description = "OWASP Agent Control Standard (ACS) v0.1.0 Guardian over JSON-RPC, backed by the Tool-gate policy engine"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Rayavarapu Manohar", email = "rayavarapumanohar2002@gmail.com" }]
+keywords = ["acs", "agent-control-standard", "owasp", "guardian", "ai-agents", "policy", "json-rpc"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Development Status :: 3 - Alpha",
+]
+dependencies = [
+    # Tool-gate is not on PyPI; pinned to the commit this Guardian was built and tested against.
+    "toolgate @ git+https://github.com/Manohar8142/Tool-gate@26f3711491f865d496439d66b26a17a55a102b5b",
+    "jsonschema>=4.18",
+    "referencing>=0.30",
+    "rfc3339-validator>=0.1.4",
+    "rfc8785>=0.1.2",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Specification = "https://github.com/GenAI-Security-Project/agent-control-standard"
+"Tool-gate" = "https://github.com/Manohar8142/Tool-gate"
+
+[project.scripts]
+acs-guardian-toolgate = "acs_guardian_toolgate.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/acs_guardian_toolgate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

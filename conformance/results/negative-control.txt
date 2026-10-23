@@ -1,0 +1,7 @@
+# Negative control: the same harness leg against this Guardian with its method_not_dispatched code
+# deliberately changed to -32601. The harness must FAIL here, proving the PASS run is a real measurement.
+=== ACS harness, live-wire leg (checkDenyFailsClosed) against http://127.0.0.1:8798/acs ===
+probes: assertEvaluationFailsClosed, assertHookPayloadFailureIsUndispatchedElsewhere,
+        assertUnmappedMethodIsUndispatched, measureDenyColumn (one probe per mapped ACS method)
+RESULT: FAIL -- "steps/sessionStart" with an empty payload -- invalid only at the two hook-payload-checked methods -- answered {"jsonrpc":"2.0","id":"2e238b4a-6b48-4c61-b0ea-cf24dde958b0","error":{"code":-32601,"message":"method 'steps/sessionStart' is not dispatched by this Guardian","data":{"reason":"error","message":"method 'steps/sessionStart' is not dispatched by this Guardian","methods_evaluated":["steps/toolCallRequest","steps/toolCallResult"]}}} instead of method_not_dispatched. The hook-payload/dispatch coincidence this probe measures does not hold against this Guardian.
+exit: 1

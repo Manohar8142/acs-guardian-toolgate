@@ -1,0 +1,4 @@
+Vendored byte-for-byte from https://github.com/GenAI-Security-Project/agent-control-standard
+path: specification/v0.1.0/
+commit: d1ad2943107601e3c09f8e0c8eaf57b78b38a01b
+license: Apache-2.0 (see LICENSING.md in that repository)

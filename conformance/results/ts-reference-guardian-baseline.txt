@@ -1,0 +1,83 @@
+=== Mapping table: what this implementation declares (from mapping.yaml) ===
+AGT intervention point -> ACS v0.1.0 method (mapping.yaml: intervention_points)
+  agent_shutdown  -> steps/sessionEnd
+  agent_startup   -> steps/sessionStart
+  input           -> steps/userMessage
+  output          -> steps/agentResponse
+  post_model_call -> (no ACS v0.1.0 method carries a model call, so this point is unexpressed at every verdict)
+  post_tool_call  -> steps/toolCallResult
+  pre_model_call  -> (no ACS v0.1.0 method carries a model call, so this point is unexpressed at every verdict)
+  pre_tool_call   -> steps/toolCallRequest
+
+AGT verdict -> ACS decision (mapping.yaml: verdicts)
+  allow     -> allow
+  deny      -> deny
+  escalate  -> ask
+  transform -> modify
+  warn      -> allow (non-empty policy_references required)
+
+=== Coverage matrix: what was measured, 8 AGT intervention points x 5 AGT verdicts ===
+AGT intervention point (rows) x AGT verdicts (columns)
+Each cell measures ACS v0.1.0's expressive power against AGT's vocabulary at that point x verdict -- it is NOT a claim about which methods this Guardian evaluates. Which methods this Guardian evaluates is a different question, answered by this Guardian's own ServerHello (its methods_evaluated field), never by this table.
+
+                 allow         deny          escalate      transform     warn          
+agent_shutdown   ✔             ✔[1]          ✔             ✖[2]          ◐[3]          
+agent_startup    ✔             ✔[1]          ✔             ✖[4]          ◐[3]          
+input            ✔             ✔[1]          ✔             ✖[5]          ◐[3]          
+output           ✔             ✔[1]          ✔             ✖[6]          ◐[3]          
+post_model_call  ✖[7]          ✖[7]          ✖[7]          ✖[7]          ✖[7]          
+post_tool_call   ✔             ✔[1]          ✔             ◐[8]          ◐[3]          
+pre_model_call   ✖[7]          ✖[7]          ✖[7]          ✖[7]          ✖[7]          
+pre_tool_call    ✔             ✔[1]          ✔             ◐[8]          ◐[3]          
+
+Legend: ✔ expressed   ◐ guardian_only   ✖ unexpressed   ‼ contract_violated
+✖ is an answer -- ACS v0.1.0 has no target here. ‼ is a finding -- a declaration in this repository was checked and does not hold, and it is what makes this run exit non-zero.
+
+[1] AGT's evaluation layer fails closed (§6.4): an otherwise well-formed envelope missing a required request-envelope.json field (params.metadata) arrives as an honoured ACS deny decision at this point, never a bare JSON-RPC error -- denyOnInvalidEnvelope is what does it, measured live against this Guardian at this point specifically. What a host does when no decision arrives at all is a different claim, is the host's rather than the Guardian's, and is measured separately by hosts/claude-code/test/posture.test.ts.
+[2] mapping.yaml maps AGT decision "transform" to ACS "modify", but its intervention_points row for "agent_shutdown" declares no modifications rule, so this mapping cannot express the rewrite
+[3] AGT's only stock warn gate reads input.annotations.drift_score, which reaches the policy input from a manifest-declared annotator and never from the snapshot; no ACS v0.1.0 method payload carries a field a drift score could be derived from, so the Guardian must originate it
+[4] mapping.yaml maps AGT decision "transform" to ACS "modify", but its intervention_points row for "agent_startup" declares no modifications rule, so this mapping cannot express the rewrite
+[5] mapping.yaml maps AGT decision "transform" to ACS "modify", but its intervention_points row for "input" declares no modifications rule, so this mapping cannot express the rewrite
+[6] mapping.yaml maps AGT decision "transform" to ACS "modify", but its intervention_points row for "output" declares no modifications rule, so this mapping cannot express the rewrite
+[7] no ACS v0.1.0 method carries a model call, so this point is unexpressed at every verdict
+[8] ACS v0.1.0 carries no action-identity field on any of its 44 schemas, so a wire consumer cannot bind an approval to the action that executed; AGT's enforced identity binds to the policy target it rewrote, not to the document the host applies modifications to
+
+=== Trace pillar: measured as a non-claim, attribute by attribute ===
+Trace pillar (trace/otel-mapping.json): each required or conditional OTel attribute against its v0.1.0 wire source, and whether a downstream consumer of the ACS wire -- not this Guardian -- could emit it from that source alone. This implementation does NOT claim the Trace pillar; this table is what that declaration is measured against.
+
+  ✔ gen_ai.tool.name         on gen_ai.tool.call                               <- hooks/tool-call-request.json#tool.name
+  ○ acs.capability           on gen_ai.tool.call                               <- hooks/tool-call-request.json#capability hooks/tool-call-request.json's "capability" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.capability being emitted
+  ✔ gen_ai.tool.name         on gen_ai.tool.result                             <- hooks/tool-call-result.json#tool.name
+  ✔ acs.exit_status          on gen_ai.tool.result                             <- hooks/tool-call-result.json#exit_status
+  ○ acs.request_id_ref       on gen_ai.tool.result                             <- hooks/tool-call-result.json#request_id_ref hooks/tool-call-result.json's "request_id_ref" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.request_id_ref being emitted
+  ✔ acs.session.id           on acs.session                                    <- request-envelope.json#AcsParams.metadata.session_id
+  ✔ acs.session.reason       on acs.session.end                                <- hooks/session-end.json#reason
+  ✔ acs.session.id           on acs.message.user                               <- request-envelope.json#AcsParams.metadata.session_id
+  ✔ acs.content.types        on acs.message.user                               <- hooks/user-message.json#content[].type
+  ✔ acs.session.id           on acs.message.agent                              <- request-envelope.json#AcsParams.metadata.session_id
+  ✔ acs.agent.id             on acs.message.agent                              <- request-envelope.json#AcsParams.metadata.agent_id
+  ✔ acs.request_id           on (every step span)                              <- request-envelope.json#AcsParams.request_id
+  ✔ acs.session.id           on (every step span)                              <- request-envelope.json#AcsParams.metadata.session_id
+  ✔ acs.decision             on acs.decision                                   <- response-envelope.json#AcsResult.decision
+  ○ acs.evaluator            on acs.decision                                   <- response-envelope.json#AcsResult.metadata.evaluator response-envelope.json's "AcsResult.metadata.evaluator" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.evaluator being emitted
+  ○ acs.reasoning            on acs.decision                                   <- response-envelope.json#AcsResult.reasoning response-envelope.json's "AcsResult.reasoning" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.reasoning being emitted
+  ○ acs.confidence           on acs.decision                                   <- response-envelope.json#AcsResult.metadata.confidence response-envelope.json's "AcsResult.metadata.confidence" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.confidence being emitted
+  ○ acs.evaluator_version    on acs.decision                                   <- response-envelope.json#AcsResult.metadata.evaluator_version response-envelope.json's "AcsResult.metadata.evaluator_version" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.evaluator_version being emitted
+  ○ acs.model_id             on acs.decision                                   <- response-envelope.json#AcsResult.metadata.model_id response-envelope.json's "AcsResult.metadata.model_id" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.model_id being emitted
+  ○ acs.reason_codes         on acs.decision                                   <- response-envelope.json#AcsResult.reason_codes response-envelope.json's "AcsResult.reason_codes" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.reason_codes being emitted
+  ○ acs.policy.ids           on acs.decision                                   <- response-envelope.json#AcsResult.policy_references response-envelope.json's "AcsResult.policy_references" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.policy.ids being emitted
+  ○ acs.policy.versions      on acs.decision                                   <- response-envelope.json#AcsResult.policy_references response-envelope.json's "AcsResult.policy_references" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.policy.versions being emitted
+  ○ acs.policy.rule_ids      on acs.decision                                   <- response-envelope.json#AcsResult.policy_references response-envelope.json's "AcsResult.policy_references" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.policy.rule_ids being emitted
+  ○ acs.cited_provenance_ids on acs.decision                                   <- response-envelope.json#AcsResult.cited_provenance_ids response-envelope.json's "AcsResult.cited_provenance_ids" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.cited_provenance_ids being emitted
+  ○ acs.chain_hash           on acs.decision                                   <- response-envelope.json#AcsResult.chain_hash response-envelope.json's "AcsResult.chain_hash" exists but is optional there, so a conformant envelope may omit it -- a wire consumer cannot rely on acs.chain_hash being emitted
+  ✔ acs.provenance.origin    on (every step span, when Provenance is attached) <- provenance.json#origin
+
+Legend: ✔ emittable by a wire consumer alone   ○ conditional: emitted when the envelope carries it   ✖ required but not emittable (reason inline)
+
+=== Which checks ran ===
+intervention-point round trip (through the Guardian's own resolver): RAN
+policy-input schema (AGT's own policy-input.schema.json, at the pinned ref): DID NOT RUN -- PINNED_AGT_CLONE is not set -- run `bun run conformance` (scripts/run-conformance.sh clones AGT at agt.lock's pinned ref and sets it) to run this leg; `bun test` alone never performs the fetch
+verdict round trip (through the Guardian's own verdict mapping): RAN
+action identity (recomputed at pre_tool_call and post_tool_call, merged): RAN
+deny fails closed (live Guardian, over the wire): RAN
+trace pillar: RAN

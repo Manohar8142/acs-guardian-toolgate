@@ -1,0 +1,36 @@
+# acs-guardian-toolgate example configuration. Every key is optional; each can
+# also be set as ACS_<KEY_IN_UPPERCASE> in the environment.
+policy_path: policies/default.yaml     # Tool-gate policy (YAML)
+policy_id: toolgate                    # policy_references[].policy_id
+
+host: 127.0.0.1                        # loopback by default
+port: 8787
+path: /acs
+
+keys_file: .acs/keys.yaml              # key_id -> base64 secret; or ACS_HMAC_KEYS='{"2026-10":"..."}'
+require_signatures: true               # ACS-Core §10. false = lab only
+require_handshake: true                # steps/* before handshake/hello -> deny
+
+on_decision_failure: deny              # declared in ServerHello; spec default is proceed (fail-open)
+skew_window_ms: 300000
+default_timeout_ms: 2000
+per_method_timeout_ms:
+  steps/toolCallRequest: 2000
+evaluation_time_limit_ms: 1000         # must stay below default_timeout_ms
+
+approver_type: human
+approver_id: operator
+ask_timeout_seconds: 300
+ask_incapable_agents: []               # agent_id globs whose host cannot route ASK (§9.2)
+ask_incapable_substitute: deny         # deny (approver_unavailable) | defer
+
+deny_unresolved_result_refs: false
+policy_requires_provenance: false
+
+max_body_bytes: 1048576
+max_concurrent_requests: 64
+max_sessions: 10000
+storage: memory
+audit_log: .acs/audit.jsonl
+audit_log_max_bytes: 52428800
+audit_log_archive_dir: .acs/archive

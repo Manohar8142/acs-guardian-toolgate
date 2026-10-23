@@ -1,0 +1,14 @@
+acs-guardian-toolgate
+Copyright 2026 Rayavarapu Manohar
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This product includes the OWASP Agent Control Standard (ACS) v0.1.0 JSON
+schemas, vendored unmodified under src/acs_guardian_toolgate/schemas/v0.1.0/
+from https://github.com/GenAI-Security-Project/agent-control-standard
+(commit d1ad2943107601e3c09f8e0c8eaf57b78b38a01b).
+Copyright 2025-2026 The OWASP GenAI Security Project and the ACS contributors,
+licensed under the Apache License, Version 2.0.
+
+policies/default.yaml is copied from Tool-gate
+(https://github.com/Manohar8142/Tool-gate, commit 26f3711), Apache-2.0.

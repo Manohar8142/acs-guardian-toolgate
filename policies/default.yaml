@@ -1,0 +1,50 @@
+# toolgate policy — evaluated top-down, first firing rule wins.
+version: 1
+default: allow
+
+# Tools whose OUTPUT is untrusted (web content, inbound email, tickets…).
+# Once any of these runs, the session is "tainted": prompt-injection payloads
+# may now be in the model context, so privileged sinks get locked down.
+taint_sources:
+  - "web.fetch"
+  - "web.search"
+  - "email.read*"
+  - "browser.*"
+
+rules:
+  # --- Hard denies -----------------------------------------------------
+  - name: block-destructive-sql
+    match: "db.*"
+    when:
+      args_regex: "(?i)\\b(drop\\s+table|truncate|delete\\s+from)\\b"
+    action: deny
+    reason: destructive SQL is never allowed from an agent
+
+  - name: block-secret-file-reads
+    match: ["fs.read", "shell.*"]
+    when:
+      args_regex: "(?i)(\\.env|id_rsa|credentials|\\.aws/)"
+    action: deny
+    reason: agents may not read credential files
+
+  # --- Prompt-injection blast-radius control ---------------------------
+  - name: no-exfil-after-untrusted-content
+    match: ["email.send", "http.post", "slack.post*", "fs.write"]
+    when:
+      session_tainted: true
+    action: require_approval
+    reason: outbound action after untrusted content entered the context
+
+  # --- Behavioral anomalies --------------------------------------------
+  - name: db-query-burst
+    match: "db.query"
+    when:
+      max_calls: { count: 5, window_seconds: 60 }
+    action: require_approval
+    reason: unusually high query volume for one session
+
+  # --- Always-human actions --------------------------------------------
+  - name: deploys-need-a-human
+    match: ["deploy.*", "k8s.apply", "terraform.apply"]
+    action: require_approval
+    reason: production changes require human sign-off

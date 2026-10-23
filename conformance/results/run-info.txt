@@ -1,0 +1,6 @@
+acs commit: d1ad2943107601e3c09f8e0c8eaf57b78b38a01b
+toolgate:   0.1.0
+bun:        1.3.11
+date:       2026-10-23T14:31:23+00:00
+harness wire leg exit: 0
+ACS-Core wire suite exit: 0

@@ -1,0 +1,30 @@
+PASS  HS-1        §4                       handshake/hello returns a schema-valid ServerHello
+PASS  HS-2        §4, §17.1                no common version -> UNSUPPORTED_VERSION (-32001) with supported_versions
+PASS  HS-3        §4                       ClientHello missing required fields is rejected (no ServerHello)
+PASS  HS-4        §4                       hook traffic before handshake is not allowed through
+PASS  HS-5        §17.1                    method not negotiated -> CAPABILITY_NOT_NEGOTIATED (-32003)
+PASS  DISP-ALLOW  §6, §6.1                 allow decision, schema-valid, with chain_hash and signature
+PASS  DISP-DENY   §6                       deny decision carries reasoning (Tool-gate deny)
+PASS  DISP-ASK    §6, §9                   ask decision carries reasoning + schema-valid ask_details (Tool-gate require_approval)
+PASS  DISP-TAINT  §6.1                     taint flow: web.fetch then email.send -> ask, reason_codes name it
+PASS  RES-1       hooks.md toolCallResult  unresolvable request_id_ref is recorded (reason code) and decided
+PASS  RES-2       §6.4                     result for a denied request is denied
+PASS  SIG-1       §10                      unsigned hook request -> SIGNATURE_INVALID (-32004)
+PASS  SIG-2       §10 key_id               unknown key_id -> SIGNATURE_INVALID, no fallback
+PASS  SIG-3       §10 signed input         tampered envelope (payload changed after signing) -> SIGNATURE_INVALID
+PASS  SIG-4       §10                      re-wrapping a signature under another session_id -> SIGNATURE_INVALID
+PASS  SIG-5       §10 HKDF                 HKDF known-answer vector from §10 reproduces
+PASS  RP-1        §10.3                    duplicate request_id in a session -> REPLAY_DETECTED (-32005)
+PASS  RP-2        §10.3                    duplicate nonce -> REPLAY_DETECTED
+PASS  RP-3        §10.3                    timestamp outside skew window -> TIMESTAMP_OUT_OF_WINDOW (-32006) with skew_window_ms
+PASS  CH-1        §8.6                     chain head published on every content-bearing step and advances
+PASS  CH-2        §8.6                     submitted chain_hash that disagrees with the head -> deny chain_mismatch
+PASS  FC-1        §6.4 / refimpl README    schema-invalid steps/* envelope (no metadata) -> honoured deny
+PASS  FC-2        §6.4                     invalid toolCallRequest payload -> honoured deny
+PASS  PING-1      §13                      system/ping unsigned -> allow, payload status/echo/server_timestamp, no chain_hash
+PASS  RPC-1       §3                       batch of two -> two correlated responses in order
+PASS  RPC-2       §3, §17                  empty batch -> -32600; unparseable body -> -32700 with id null
+PASS  RPC-3       §17                      unknown method -> JSON-RPC error, never a decision
+PASS  SCHEMA-ALL  §3                       every response received in this run validates against response-envelope.json
+
+28 passed, 0 failed, 28 total
